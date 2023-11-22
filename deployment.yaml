@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webhook-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: webhook-app
+  template:
+    metadata:
+      labels:
+        app: webhook-app
+    spec:
+      containers:
+      - name: admission-webhook-container
+        image: ghcr.io/dystewart/k8s-admission-controller/mutator:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8443
