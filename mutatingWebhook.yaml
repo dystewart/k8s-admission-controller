@@ -8,7 +8,7 @@ webhooks:
     service:
       name: labeling-webhook-service
       namespace: test
-      path: "/"
+      path: "/mutate"
   rules:
   - operations: ["CREATE"]
     apiGroups: ["apps"]
