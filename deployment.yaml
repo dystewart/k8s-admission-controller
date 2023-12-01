@@ -6,15 +6,23 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: webhook-app
+      app: labeling-webhook
   template:
     metadata:
       labels:
-        app: webhook-app
+        app: labeling-webhook
     spec:
       containers:
       - name: admission-webhook-container
         image: ghcr.io/dystewart/k8s-admission-controller/mutator:latest
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         ports:
         - containerPort: 8443
+        volumeMounts:
+          - name: certs
+            mountPath: /etc/certs
+      volumes:
+      - name: certs
+        secret:
+          secretName: svc-cert
+
