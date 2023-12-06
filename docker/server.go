@@ -131,32 +131,34 @@ func serveValidate(w http.ResponseWriter, r *http.Request) {
 	serve(w, r, AdmitHandler(validate))
 }
 
-
-// adds prefix 'prod' to every incoming Deployment, example: prod-apps
 func mutate(ar admission.AdmissionReview) *admission.AdmissionResponse {
-	log.Info().Msgf("mutating deployments")
-	deploymentResource := metav1.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}
-	if ar.Request.Resource != deploymentResource {
-		log.Error().Msgf("expect resource to be %s", deploymentResource)
-		return nil
-	}
-	raw := ar.Request.Object.Raw
-	deployment := appsv1.Deployment{}
+    log.Info().Msgf("mutating statefulset")
+    statefulsetResource := metav1.GroupVersionResource{Group: "apps", Version: "v1", Resource: "statefulsets"}
+    if ar.Request.Resource != statefulsetResource {
+        log.Error().Msgf("expect resource to be %s", statefulsetResource)
+        return nil
+    }
+    raw := ar.Request.Object.Raw
+    statefulSet := appsv1.StatefulSet{}
 
-	if _, _, err := deserializer.Decode(raw, nil, &deployment); err != nil {
-		log.Err(err)
-		return &admission.AdmissionResponse{
-			Result: &metav1.Status{
-				Message: err.Error(),
-			},
-		}
-	}
-	newDeploymentName := fmt.Sprintf("prod-%s", deployment.GetName())
-	pt := admission.PatchTypeJSONPatch
-	deploymentPatch := fmt.Sprintf(`[{ "op": "add", "path": "/metadata/name", "value": "%s" }]`, newDeploymentName)
-	return &admission.AdmissionResponse{Allowed: true, PatchType: &pt, Patch: []byte(deploymentPatch)}
+    if _, _, err := deserializer.Decode(raw, nil, &statefulSet); err != nil {
+        log.Err(err)
+        return &admission.AdmissionResponse{
+            Result: &metav1.Status{
+                Message: err.Error(),
+            },
+        }
+    }
+
+    userName := ar.Request.UserInfo.Username
+    pt := admission.PatchTypeJSONPatch
+    statefulsetPatch := fmt.Sprintf(`[
+        { "op": "add", "path": "/spec/template/metadata/labels/userName", "value": "%s" },
+        { "op": "add", "path": "/spec/selector/matchLabels/userName", "value": "%s" }
+    ]`, userName, userName)
+
+    return &admission.AdmissionResponse{Allowed: true, PatchType: &pt, Patch: []byte(statefulsetPatch)}
 }
-
 
 
 // verify if a Deployment has the 'prod' prefix name
@@ -180,7 +182,7 @@ func validate(ar admission.AdmissionReview) *admission.AdmissionResponse {
 	if !strings.HasPrefix(deployment.GetName(), "prod-") {
 		return &admission.AdmissionResponse{
 			Allowed: false, Result: &metav1.Status{
-				Message: "Deployment's prefix name \"prod\" not found",
+				Message: "Statefulset's prefix name \"prod\" not found",
 			},
 		}
 	}
