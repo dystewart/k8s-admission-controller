@@ -3,5 +3,7 @@ kind: Kustomization
 namespace: test
 resources:
   - deployment.yaml
-  - mutatingWebhook.yaml
+  - webhooks/mutatingWebhook.yaml
+  - webhooks/validatingwebhook.yaml
   - service.yaml
+  - statefulsets/sts-to-label.yaml
