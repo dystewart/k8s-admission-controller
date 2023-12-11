@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: busybox-statefulset
+  namespace: test
+spec:
+  serviceName: "busybox"
+  replicas: 3
+  selector:
+    matchLabels:
+      app: busybox
+  template:
+    metadata:
+      labels:
+        app: busybox
+    spec:
+      containers:
+      - name: busybox
+        image: busybox:latest
+        command:
+        - "/bin/sh"
+        - "-c"
+        - "sleep infinity"
