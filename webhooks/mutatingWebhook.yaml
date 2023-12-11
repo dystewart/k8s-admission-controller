@@ -12,6 +12,11 @@ webhooks:
         name: labeling-webhook-service
         namespace: test
         path: "/mutate"
+    namespaceSelector:
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: In
+          values: [ "test" ]
     rules:
       -  operations: ["CREATE"]
          apiGroups: ["apps"]

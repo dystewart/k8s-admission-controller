@@ -12,8 +12,13 @@ webhooks:
         name: labeling-webhook-service
         namespace: test
         path: "/validate"
+    namespaceSelector:
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: In
+          values: [ "test" ]
     rules:
-      - operations: ["PATCH", "DELETE", "UPDATE"]
+      - operations: ["DELETE", "UPDATE"]
         apiGroups: ["apps"]
         apiVersions: ["v1"]
         resources: ["statefulsets"]
