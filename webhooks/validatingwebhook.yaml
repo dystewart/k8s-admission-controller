@@ -13,7 +13,7 @@ webhooks:
         namespace: test
         path: "/validate"
     rules:
-      - operations: ["CREATE"]
+      - operations: ["PATCH", "DELETE", "UPDATE"]
         apiGroups: ["apps"]
         apiVersions: ["v1"]
         resources: ["statefulsets"]
