@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strings"
 
 	"github.com/rs/zerolog/log"
 	admission "k8s.io/api/admission/v1"
@@ -161,17 +160,18 @@ func mutate(ar admission.AdmissionReview) *admission.AdmissionResponse {
 }
 
 
-// verify if a Deployment has the 'prod' prefix name
+// verify if a StatefulSet has the username label matching the user's userName
 func validate(ar admission.AdmissionReview) *admission.AdmissionResponse {
-	log.Info().Msgf("validating deployments")
-	deploymentResource := metav1.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}
-	if ar.Request.Resource != deploymentResource {
-		log.Error().Msgf("expect resource to be %s", deploymentResource)
+	log.Info().Msgf("validating statefulsets")
+	statefulsetResource := metav1.GroupVersionResource{Group: "apps", Version: "v1", Resource: "statefulsets"}
+	if ar.Request.Resource != statefulsetResource {
+		log.Error().Msgf("expect resource to be %s", statefulsetResource)
 		return nil
 	}
+
 	raw := ar.Request.Object.Raw
-	deployment := appsv1.Deployment{}
-	if _, _, err := deserializer.Decode(raw, nil, &deployment); err != nil {
+	statefulset := appsv1.StatefulSet{}
+	if _, _, err := deserializer.Decode(raw, nil, &statefulset); err != nil {
 		log.Err(err)
 		return &admission.AdmissionResponse{
 			Result: &metav1.Status{
@@ -179,15 +179,22 @@ func validate(ar admission.AdmissionReview) *admission.AdmissionResponse {
 			},
 		}
 	}
-	if !strings.HasPrefix(deployment.GetName(), "prod-") {
+
+	// Get the user's userName
+	userName := ar.Request.UserInfo.Username
+
+	// Check if the username label is present in the StatefulSet and matches the user's userName
+	if statefulset.Labels["username"] != userName {
 		return &admission.AdmissionResponse{
 			Allowed: false, Result: &metav1.Status{
-				Message: "Statefulset's prefix name \"prod\" not found",
+				Message: "StatefulSet's username label does not match the user's userName",
 			},
 		}
 	}
+
 	return &admission.AdmissionResponse{Allowed: true}
 }
+
 
 func main() {
 	var tlsKey, tlsCert string
