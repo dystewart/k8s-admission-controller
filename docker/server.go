@@ -163,6 +163,8 @@ func mutate(ar admission.AdmissionReview) *admission.AdmissionResponse {
 // verify if a StatefulSet has the username label matching the user's userName
 func validate(ar admission.AdmissionReview) *admission.AdmissionResponse {
 	log.Info().Msgf("validating statefulsets")
+
+	// Check if the request is for a StatefulSet resource
 	statefulsetResource := metav1.GroupVersionResource{Group: "apps", Version: "v1", Resource: "statefulsets"}
 	if ar.Request.Resource != statefulsetResource {
 		log.Error().Msgf("expect resource to be %s", statefulsetResource)
@@ -184,13 +186,13 @@ func validate(ar admission.AdmissionReview) *admission.AdmissionResponse {
 	userName := ar.Request.UserInfo.Username
 
 	// Check if the username label is present in the StatefulSet and matches the user's userName
-	if statefulset.Labels["username"] != userName {
-		return &admission.AdmissionResponse{
-			Allowed: false, Result: &metav1.Status{
-				Message: "StatefulSet's username label does not match the user's userName",
-			},
-		}
-	}
+	if statefulset.Labels["userName"] != userName {
+      return &admission.AdmissionResponse{
+        Allowed: false, Result: &metav1.Status{
+          Message: fmt.Sprintf("StatefulSet's username label (%s) does not match the user's userName (%s)", statefulset.Labels["username"], userName),
+        },
+    }
+}
 
 	return &admission.AdmissionResponse{Allowed: true}
 }
