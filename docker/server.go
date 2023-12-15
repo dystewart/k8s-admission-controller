@@ -13,41 +13,39 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
-	"k8s.io/kubernetes/pkg/apis/apps/v1"
+	v1 "k8s.io/kubernetes/pkg/apis/apps/v1"
 
 	"encoding/json"
 )
 
-
 var (
 	// Initialize runtime scheme, codec factory, and deserializer
 
-	/* 
-	Creates a new instance of the Kubernetes runtime.Scheme. 
-	This scheme is a central registry for kubernetes types and their conversion functions. 
-	It is used for encoding and decoding objects in Kubernetes.
+	/*
+		Creates a new instance of the Kubernetes runtime.Scheme.
+		This scheme is a central registry for kubernetes types and their conversion functions.
+		It is used for encoding and decoding objects in Kubernetes.
 	*/
 	runtimeScheme = runtime.NewScheme()
 	// Instantiate serializer.CodecFactory, which is used for encoding and decoding objects
-	codecFactory  = serializer.NewCodecFactory(runtimeScheme)
-	/* 
-	Codec is a Serializer that deals with the details of versioning objects.
-	It offers the same interface as Serializer, so this is a marker to consumers that care 
-	about the version of the objects they receive
+	codecFactory = serializer.NewCodecFactory(runtimeScheme)
+	/*
+		Codec is a Serializer that deals with the details of versioning objects.
+		It offers the same interface as Serializer, so this is a marker to consumers that care
+		about the version of the objects they receive
 	*/
-	deserializer  = codecFactory.UniversalDeserializer()
+	deserializer = codecFactory.UniversalDeserializer()
 )
 
 // This is a special Go function that is automatically called during initialization of the program.
 func init() {
-	// Adds the corev1 types to runtimeScheme 
+	// Adds the corev1 types to runtimeScheme
 	_ = corev1.AddToScheme(runtimeScheme)
-	// Adds admission api types to runtimeScheme 
+	// Adds admission api types to runtimeScheme
 	_ = admission.AddToScheme(runtimeScheme)
 	// Adds types from apps/v1 to runtimeScheme
 	_ = v1.AddToScheme(runtimeScheme)
 }
-
 
 // Declare new function to handle an admissionReview and produce an admissionResponse
 type admitv1Func func(admission.AdmissionReview) *admission.AdmissionResponse
@@ -64,10 +62,9 @@ func AdmitHandler(f admitv1Func) admitHandler {
 	}
 }
 
-
 // serve handles the http portion of a request prior to handing to an admit function
 func serve(w http.ResponseWriter, r *http.Request, admit admitHandler) {
-	// This is a byte slice to store the store the content of http request 
+	// This is a byte slice to store the store the content of http request
 	var body []byte
 	if r.Body != nil {
 		if data, err := ioutil.ReadAll(r.Body); err == nil {
@@ -82,7 +79,7 @@ func serve(w http.ResponseWriter, r *http.Request, admit admitHandler) {
 		return
 	}
 
-	// Print error to logs and return http error if request fails 
+	// Print error to logs and return http error if request fails
 	log.Info().Msgf("handling request: %s", body)
 	var responseObj runtime.Object
 	if obj, gvk, err := deserializer.Decode(body, nil, nil); err != nil {
@@ -91,7 +88,7 @@ func serve(w http.ResponseWriter, r *http.Request, admit admitHandler) {
 		http.Error(w, msg, http.StatusBadRequest)
 		return
 
-	// If decoding succeeeds 
+		// If decoding succeeeds
 	} else {
 		// Store admission.AdmissionReview from decoded obj
 		requestedAdmissionReview, ok := obj.(*admission.AdmissionReview)
@@ -99,7 +96,7 @@ func serve(w http.ResponseWriter, r *http.Request, admit admitHandler) {
 			log.Error().Msgf("Expected v1.AdmissionReview but got: %T", obj)
 			return
 		}
-		// Create admission review response 
+		// Create admission review response
 		responseAdmissionReview := &admission.AdmissionReview{}
 		responseAdmissionReview.SetGroupVersionKind(*gvk)
 		// Set response to result of call to admit.v1 function
@@ -121,48 +118,51 @@ func serve(w http.ResponseWriter, r *http.Request, admit admitHandler) {
 	}
 }
 
-// Called when the mutating webhook endpoint /mutate is requested 
+// Called when the mutating webhook endpoint /mutate is requested
 func serveMutate(w http.ResponseWriter, r *http.Request) {
 	serve(w, r, AdmitHandler(mutate))
 }
-// Called when the validating webhook endpoint /validate is requested 
+
+// Called when the validating webhook endpoint /validate is requested
 func serveValidate(w http.ResponseWriter, r *http.Request) {
 	serve(w, r, AdmitHandler(validate))
 }
 
 func mutate(ar admission.AdmissionReview) *admission.AdmissionResponse {
-    log.Info().Msgf("mutating statefulset")
-    statefulsetResource := metav1.GroupVersionResource{Group: "apps", Version: "v1", Resource: "statefulsets"}
-    if ar.Request.Resource != statefulsetResource {
-        log.Error().Msgf("expect resource to be %s", statefulsetResource)
-        return nil
-    }
-    raw := ar.Request.Object.Raw
-    statefulSet := appsv1.StatefulSet{}
+	log.Info().Msgf("mutating statefulset")
+	statefulsetResource := metav1.GroupVersionResource{Group: "apps", Version: "v1", Resource: "statefulsets"}
+	if ar.Request.Resource != statefulsetResource {
+		log.Error().Msgf("expect resource to be %s", statefulsetResource)
+		return nil
+	}
+	raw := ar.Request.Object.Raw
+	statefulSet := appsv1.StatefulSet{}
 
-    if _, _, err := deserializer.Decode(raw, nil, &statefulSet); err != nil {
-        log.Err(err)
-        return &admission.AdmissionResponse{
-            Result: &metav1.Status{
-                Message: err.Error(),
-            },
-        }
-    }
+	if _, _, err := deserializer.Decode(raw, nil, &statefulSet); err != nil {
+		log.Err(err)
+		return &admission.AdmissionResponse{
+			Result: &metav1.Status{
+				Message: err.Error(),
+			},
+		}
+	}
 
-    userName := ar.Request.UserInfo.Username
-    pt := admission.PatchTypeJSONPatch
-    statefulsetPatch := fmt.Sprintf(`[
-        { "op": "add", "path": "/spec/template/metadata/labels/userName", "value": "%s" },
-        { "op": "add", "path": "/spec/selector/matchLabels/userName", "value": "%s" }
-    ]`, userName, userName)
+	// Initialize Labels map if it's nil
+	if statefulSet.Labels == nil {
+		statefulSet.Labels = make(map[string]string)
+	}
 
-    return &admission.AdmissionResponse{Allowed: true, PatchType: &pt, Patch: []byte(statefulsetPatch)}
+	userName := ar.Request.UserInfo.Username
+	pt := admission.PatchTypeJSONPatch
+	statefulsetPatch := fmt.Sprintf(`[
+        { "op": "add", "path": "/spec/template/metadata/labels/userName", "value": "%s" }]`, userName)
+
+	return &admission.AdmissionResponse{Allowed: true, PatchType: &pt, Patch: []byte(statefulsetPatch)}
 }
-
 
 // verify if a StatefulSet has the username label matching the user's userName
 func validate(ar admission.AdmissionReview) *admission.AdmissionResponse {
-	log.Info().Msgf("validating statefulsets")
+	log.Info().Msgf("validating statefulset")
 
 	// Check if the request is for a StatefulSet resource
 	statefulsetResource := metav1.GroupVersionResource{Group: "apps", Version: "v1", Resource: "statefulsets"}
@@ -172,8 +172,15 @@ func validate(ar admission.AdmissionReview) *admission.AdmissionResponse {
 	}
 
 	raw := ar.Request.Object.Raw
-	statefulset := appsv1.StatefulSet{}
-	if _, _, err := deserializer.Decode(raw, nil, &statefulset); err != nil {
+	log.Info().Msgf("Admission Request: %s", string(raw))
+
+	// Get the user's userName
+	userName := ar.Request.UserInfo.Username
+	log.Info().Msgf("userName in Validation request: %s", userName)
+
+	statefulSet := appsv1.StatefulSet{}
+
+	if _, _, err := deserializer.Decode(raw, nil, &statefulSet); err != nil {
 		log.Err(err)
 		return &admission.AdmissionResponse{
 			Result: &metav1.Status{
@@ -182,21 +189,70 @@ func validate(ar admission.AdmissionReview) *admission.AdmissionResponse {
 		}
 	}
 
-	// Get the user's userName
-	userName := ar.Request.UserInfo.Username
+	userNameLabel := statefulSet.Spec.Template.ObjectMeta.Labels["userName"]
 
-	// Check if the username label is present in the StatefulSet and matches the user's userName
-	if statefulset.Labels["userName"] != userName {
-      return &admission.AdmissionResponse{
-        Allowed: false, Result: &metav1.Status{
-          Message: fmt.Sprintf("StatefulSet's username label (%s) does not match the user's userName (%s)", statefulset.Labels["username"], userName),
-        },
-    }
-}
+	log.Info().Msgf("userName in sts request: %s", userNameLabel)
 
+	if userName != userNameLabel {
+		log.Info().Msgf("userName label does not match the user's userName (%s)", userName)
+		return &admission.AdmissionResponse{Allowed: false}
+	}
+
+	log.Info().Msg("Validation Passed")
 	return &admission.AdmissionResponse{Allowed: true}
 }
 
+/*
+// verify if a StatefulSet has the username label matching the user's userName
+func validate(ar admission.AdmissionReview) *admission.AdmissionResponse {
+	log.Info().Msgf("validating statefulset")
+
+	// Check if the request is for a StatefulSet resource
+	statefulsetResource := metav1.GroupVersionResource{Group: "apps", Version: "v1", Resource: "statefulsets"}
+	if ar.Request.Resource != statefulsetResource {
+		log.Error().Msgf("expect resource to be %s", statefulsetResource)
+		return nil
+	}
+
+	raw := ar.Request.Object.Raw
+	log.Info().Msgf("Admission Request: %s", string(raw))
+
+	// Get the user's userName
+	userName := ar.Request.UserInfo.Username
+	log.Info().Msgf("userName in Validation request: %s", userName)
+
+	sts := appsv1.StatefulSet{
+		Spec: appsv1.StatefulSetSpec{
+			Selector: metav1.LabelSelector{
+				MatchLabels: map[string]string{"userName": userName},
+			},
+		},
+	}
+
+	selector, _ := metav1.LabelSelectorAsSelector(sts.Spec.Selector)
+
+	// Create a labels set from the userName for comparison with the labels selceted above
+	userLabels := labels.Set{"userName": userName}
+
+	var response *admission.AdmissionResponse
+
+	// Check if the userLabels match the selector
+	if selector.Matches(userLabels) {
+		log.Info().Msg("Validation passed - username label match")
+		response = &admission.AdmissionResponse{Allowed: true}
+	}
+
+	log.Info().Msg("Validation failed - username label mismatch")
+	response = &admission.AdmissionResponse{
+		Allowed: false,
+		Result: &metav1.Status{
+			Message: fmt.Sprintf("userName label does not match the user's userName (%s)", userName),
+		},
+	}
+
+	return response
+}
+*/
 
 func main() {
 	var tlsKey, tlsCert string
