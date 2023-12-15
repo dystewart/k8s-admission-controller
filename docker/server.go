@@ -202,58 +202,6 @@ func validate(ar admission.AdmissionReview) *admission.AdmissionResponse {
 	return &admission.AdmissionResponse{Allowed: true}
 }
 
-/*
-// verify if a StatefulSet has the username label matching the user's userName
-func validate(ar admission.AdmissionReview) *admission.AdmissionResponse {
-	log.Info().Msgf("validating statefulset")
-
-	// Check if the request is for a StatefulSet resource
-	statefulsetResource := metav1.GroupVersionResource{Group: "apps", Version: "v1", Resource: "statefulsets"}
-	if ar.Request.Resource != statefulsetResource {
-		log.Error().Msgf("expect resource to be %s", statefulsetResource)
-		return nil
-	}
-
-	raw := ar.Request.Object.Raw
-	log.Info().Msgf("Admission Request: %s", string(raw))
-
-	// Get the user's userName
-	userName := ar.Request.UserInfo.Username
-	log.Info().Msgf("userName in Validation request: %s", userName)
-
-	sts := appsv1.StatefulSet{
-		Spec: appsv1.StatefulSetSpec{
-			Selector: metav1.LabelSelector{
-				MatchLabels: map[string]string{"userName": userName},
-			},
-		},
-	}
-
-	selector, _ := metav1.LabelSelectorAsSelector(sts.Spec.Selector)
-
-	// Create a labels set from the userName for comparison with the labels selceted above
-	userLabels := labels.Set{"userName": userName}
-
-	var response *admission.AdmissionResponse
-
-	// Check if the userLabels match the selector
-	if selector.Matches(userLabels) {
-		log.Info().Msg("Validation passed - username label match")
-		response = &admission.AdmissionResponse{Allowed: true}
-	}
-
-	log.Info().Msg("Validation failed - username label mismatch")
-	response = &admission.AdmissionResponse{
-		Allowed: false,
-		Result: &metav1.Status{
-			Message: fmt.Sprintf("userName label does not match the user's userName (%s)", userName),
-		},
-	}
-
-	return response
-}
-*/
-
 func main() {
 	var tlsKey, tlsCert string
 	flag.StringVar(&tlsKey, "tlsKey", "/etc/certs/tls.key", "Path to the TLS key")
