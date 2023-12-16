@@ -21,19 +21,12 @@ import (
 var (
 	// Initialize runtime scheme, codec factory, and deserializer
 
-	/*
-		Creates a new instance of the Kubernetes runtime.Scheme.
-		This scheme is a central registry for kubernetes types and their conversion functions.
-		It is used for encoding and decoding objects in Kubernetes.
-	*/
+	
+	// Creates a new instance of the Kubernetes runtime.Scheme.
+
 	runtimeScheme = runtime.NewScheme()
 	// Instantiate serializer.CodecFactory, which is used for encoding and decoding objects
 	codecFactory = serializer.NewCodecFactory(runtimeScheme)
-	/*
-		Codec is a Serializer that deals with the details of versioning objects.
-		It offers the same interface as Serializer, so this is a marker to consumers that care
-		about the version of the objects they receive
-	*/
 	deserializer = codecFactory.UniversalDeserializer()
 )
 
